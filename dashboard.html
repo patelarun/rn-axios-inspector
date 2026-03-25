@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Axios Inspector</title>
+    <link rel="stylesheet" href="/dashboard.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h1>Axios Inspector</h1>
+          <p>Live axios traffic from connected React Native apps.</p>
+        </div>
+        <div class="toolbar">
+          <input id="searchInput" type="search" placeholder="Filter by URL, app, or method" />
+          <button id="clearSelectionButton" type="button">Clear Selection</button>
+        </div>
+        <div id="requestList" class="request-list"></div>
+      </aside>
+      <main class="details">
+        <div id="emptyState" class="empty-state">
+          Waiting for requests. Start the server, open the app, and trigger an axios call.
+        </div>
+        <div id="detailPanel" class="detail-panel hidden">
+          <div class="detail-summary">
+            <div>
+              <div id="detailTitle" class="detail-title"></div>
+              <div id="detailMeta" class="detail-meta"></div>
+            </div>
+            <span id="detailStatus" class="status-badge"></span>
+          </div>
+          <section>
+            <h2>Request</h2>
+            <pre id="requestPayload"></pre>
+          </section>
+          <section>
+            <h2>Response</h2>
+            <pre id="responsePayload"></pre>
+          </section>
+          <section>
+            <h2>Error</h2>
+            <pre id="errorPayload"></pre>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="/dashboard.js"></script>
+  </body>
+  </html>

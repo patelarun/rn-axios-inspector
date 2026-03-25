@@ -1,0 +1,9 @@
+{
+  "name": "rn-axios-inspector",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.js",
+  "bin": {
+    "rn-axios-inspector-server": "./bin/rn-axios-inspector-server.js"
+  }
+}

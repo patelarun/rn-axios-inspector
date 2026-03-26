@@ -81,7 +81,7 @@ function renderList() {
       </div>
       <div class="request-url">${log.url || 'Unknown URL'}</div>
       <div class="request-meta">
-        ${log.appName || 'Unknown app'} · ${log.clientName || 'default'} · ${formatTime(log.startedAt)} · ${log.durationMs || 0}ms
+        ${log.appName || 'Unknown app'} · ${log.clientName || 'default'} · <span class="request-meta-strong">${formatTime(log.startedAt)}</span> · <span class="request-meta-strong">${log.durationMs || 0}ms</span>
       </div>
     </article>
   `).join('');

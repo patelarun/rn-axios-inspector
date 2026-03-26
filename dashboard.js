@@ -34,6 +34,19 @@ function formatTime(timestamp) {
   return new Date(timestamp).toLocaleTimeString();
 }
 
+function formatListUrl(value) {
+  if (!value) {
+    return 'Unknown URL';
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+    return `${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}` || '/';
+  } catch (error) {
+    return value;
+  }
+}
+
 function getMethodClassName(method) {
   return `method-${String(method || 'get').toLowerCase()}`;
 }
@@ -79,7 +92,7 @@ function renderList() {
         <span class="method-pill ${getMethodClassName(log.method)}">${log.method}</span>
         <span class="status-badge ${getStatusClassName(log)}">${log.response ? log.response.status : 'ERR'}</span>
       </div>
-      <div class="request-url">${log.url || 'Unknown URL'}</div>
+      <div class="request-url">${formatListUrl(log.url)}</div>
       <div class="request-meta">
         ${log.appName || 'Unknown app'} · ${log.clientName || 'default'} · <span class="request-meta-strong">${formatTime(log.startedAt)}</span> · <span class="request-meta-strong">${log.durationMs || 0}ms</span>
       </div>

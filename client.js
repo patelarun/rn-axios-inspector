@@ -36,7 +36,7 @@ function resolveSourceScriptUrl() {
     sourceCode && sourceCode.bundleURL,
   ];
 
-  return candidates.find(value => typeof value === 'string' && /^https?:\/\//i.test(value)) || '';
+  return candidates.find(value => typeof value === 'string' && /^(https?|exp):\/\//i.test(value)) || '';
 }
 
 function extractHostname(value) {

@@ -105,6 +105,7 @@ Use `serverUrl` explicitly whenever possible.
 ## Expo Go
 
 This package works with Expo Go because it is pure JavaScript and only hooks axios.
+It can also infer the Expo host from `exp://` bundle URLs, but passing `serverUrl` explicitly is still the most reliable setup on real devices.
 
 ### Expo Go On A Real Phone
 
@@ -182,10 +183,10 @@ Do not use Docker, WSL, Hyper-V, or other virtual adapter addresses.
 
 Options:
 
-- `appName`
-- `serverUrl`
-- `enabled`
-- `timeoutMs`
+- `appName`: label shown in the dashboard for requests from this app
+- `serverUrl`: dashboard base URL such as `http://127.0.0.1:5517`
+- `enabled`: set to `false` to disable logging without changing app wiring
+- `timeoutMs`: timeout used when sending events to the dashboard server
 
 Example:
 
@@ -200,7 +201,7 @@ const inspector = createAxiosInspector({
 
 Options:
 
-- `clientName`
+- `clientName`: label shown in the dashboard for that axios instance
 
 Returns a detach function.
 

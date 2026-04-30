@@ -1,4 +1,9 @@
-const { normalizeHeaders, sanitizeValue, truncateString } = require('./sanitize');
+const {
+  DEFAULT_SANITIZE_OPTIONS,
+  normalizeHeaders,
+  sanitizeValue,
+  truncateString,
+} = require('./sanitize');
 
 let ReactNative;
 try {
@@ -139,6 +144,10 @@ function createAxiosInspector(options = {}) {
   const enabled = options.enabled !== false;
   const pendingRequests = new Map();
   const send = createTransport({ serverUrl, timeoutMs: options.timeoutMs });
+  const sanitizeOptions = {
+    ...DEFAULT_SANITIZE_OPTIONS,
+    ...(options.sanitize || {}),
+  };
 
   function rememberRequest(config, context = {}) {
     if (!enabled || !config) {
@@ -158,8 +167,8 @@ function createAxiosInspector(options = {}) {
       url: config.url || '',
       fullUrl: buildUrl(config.baseURL, config.url),
       headers: normalizeHeaders(config.headers, config.method),
-      params: sanitizeValue(config.params),
-      data: sanitizeValue(config.data),
+      params: sanitizeValue(config.params, sanitizeOptions),
+      data: sanitizeValue(config.data, sanitizeOptions),
       timeout: config.timeout,
     };
 
@@ -205,7 +214,7 @@ function createAxiosInspector(options = {}) {
         status: response.status,
         statusText: response.statusText,
         headers: normalizeHeaders(response.headers),
-        data: sanitizeValue(response.data),
+        data: sanitizeValue(response.data, sanitizeOptions),
       },
       ok: response.status >= 200 && response.status < 400,
     });
@@ -230,8 +239,8 @@ function createAxiosInspector(options = {}) {
       url: config.url || '',
       fullUrl: buildUrl(config.baseURL, config.url),
       headers: normalizeHeaders(config.headers, config.method),
-      params: sanitizeValue(config.params),
-      data: sanitizeValue(config.data),
+      params: sanitizeValue(config.params, sanitizeOptions),
+      data: sanitizeValue(config.data, sanitizeOptions),
       timeout: config.timeout,
     };
 
@@ -263,7 +272,7 @@ function createAxiosInspector(options = {}) {
         status: response.status,
         statusText: response.statusText,
         headers: normalizeHeaders(response.headers),
-        data: sanitizeValue(response.data),
+        data: sanitizeValue(response.data, sanitizeOptions),
       } : null,
       error: {
         message: truncateString(error && error.message ? error.message : 'Unknown axios error', 1000),

@@ -11,6 +11,14 @@ const RESERVED_HEADER_KEYS = new Set([
 
 const SENSITIVE_KEY_PATTERN = /authorization|token|cookie|secret|password|api[-_]?key/i;
 
+/** Defaults tuned so typical API JSON matches console-style snapshots better than the old depth/key caps. */
+const DEFAULT_SANITIZE_OPTIONS = {
+  maxDepth: 16,
+  maxStringLength: 50000,
+  maxArrayLength: 500,
+  maxObjectKeys: 200,
+};
+
 function truncateString(value, maxLength) {
   if (typeof value !== 'string') {
     return value;
@@ -31,11 +39,17 @@ function maskIfSensitive(key, value) {
   return value;
 }
 
-function sanitizeValue(value, options = {}, depth = 0) {
-  const maxDepth = options.maxDepth ?? 4;
-  const maxStringLength = options.maxStringLength ?? 12000;
-  const maxArrayLength = options.maxArrayLength ?? 40;
-  const maxObjectKeys = options.maxObjectKeys ?? 40;
+function isTypedArray(value) {
+  return typeof ArrayBuffer !== 'undefined'
+    && ArrayBuffer.isView(value)
+    && !(value instanceof DataView);
+}
+
+function sanitizeValue(value, options = {}, depth = 0, pathStack = null) {
+  const maxDepth = options.maxDepth ?? DEFAULT_SANITIZE_OPTIONS.maxDepth;
+  const maxStringLength = options.maxStringLength ?? DEFAULT_SANITIZE_OPTIONS.maxStringLength;
+  const maxArrayLength = options.maxArrayLength ?? DEFAULT_SANITIZE_OPTIONS.maxArrayLength;
+  const maxObjectKeys = options.maxObjectKeys ?? DEFAULT_SANITIZE_OPTIONS.maxObjectKeys;
 
   if (value == null) {
     return value;
@@ -53,6 +67,18 @@ function sanitizeValue(value, options = {}, depth = 0) {
     return value;
   }
 
+  if (typeof value === 'bigint') {
+    return truncateString(String(value), maxStringLength);
+  }
+
+  if (typeof value === 'symbol') {
+    return truncateString(String(value), maxStringLength);
+  }
+
+  if (typeof value === 'function') {
+    return truncateString(`[Function ${value.name || 'anonymous'}]`, maxStringLength);
+  }
+
   if (value instanceof Error) {
     return {
       name: value.name,
@@ -61,10 +87,44 @@ function sanitizeValue(value, options = {}, depth = 0) {
     };
   }
 
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+
+  if (typeof Map !== 'undefined' && value instanceof Map) {
+    const entries = [...value.entries()].slice(0, maxObjectKeys);
+    return entries.reduce((accumulator, [key, entryValue]) => {
+      const keyLabel = typeof key === 'string' ? key : truncateString(String(key), 200);
+      accumulator[keyLabel] = maskIfSensitive(
+        keyLabel,
+        sanitizeValue(entryValue, options, depth + 1, pathStack),
+      );
+      return accumulator;
+    }, {});
+  }
+
+  if (typeof Set !== 'undefined' && value instanceof Set) {
+    return [...value].slice(0, maxArrayLength).map(item =>
+      sanitizeValue(item, options, depth + 1, pathStack),
+    );
+  }
+
+  if (typeof ArrayBuffer !== 'undefined' && value instanceof ArrayBuffer) {
+    return { __type: 'ArrayBuffer', byteLength: value.byteLength };
+  }
+
+  if (isTypedArray(value)) {
+    return {
+      __type: value.constructor.name,
+      byteLength: value.byteLength,
+      length: value.length,
+    };
+  }
+
   if (Array.isArray(value)) {
     return value
       .slice(0, maxArrayLength)
-      .map(item => sanitizeValue(item, options, depth + 1));
+      .map(item => sanitizeValue(item, options, depth + 1, pathStack));
   }
 
   if (typeof FormData !== 'undefined' && value instanceof FormData) {
@@ -72,21 +132,45 @@ function sanitizeValue(value, options = {}, depth = 0) {
   }
 
   if (typeof value === 'object') {
-    const entries = Object.entries(value).slice(0, maxObjectKeys);
+    const stack = pathStack || [];
+    if (stack.includes(value)) {
+      return '[Circular]';
+    }
 
-    return entries.reduce((accumulator, [key, entryValue]) => {
-      accumulator[key] = maskIfSensitive(
-        key,
-        sanitizeValue(entryValue, options, depth + 1),
-      );
-      return accumulator;
-    }, {});
+    if (typeof value.toJSON === 'function') {
+      try {
+        const jsonResult = value.toJSON();
+        stack.push(value);
+        try {
+          return sanitizeValue(jsonResult, options, depth + 1, stack);
+        } finally {
+          stack.pop();
+        }
+      } catch (error) {
+        /* fall through to enumerable snapshot */
+      }
+    }
+
+    stack.push(value);
+    try {
+      const entries = Object.entries(value).slice(0, maxObjectKeys);
+
+      return entries.reduce((accumulator, [key, entryValue]) => {
+        accumulator[key] = maskIfSensitive(
+          key,
+          sanitizeValue(entryValue, options, depth + 1, stack),
+        );
+        return accumulator;
+      }, {});
+    } finally {
+      stack.pop();
+    }
   }
 
   return truncateString(String(value), maxStringLength);
 }
 
-function normalizeHeaders(headers, method) {
+function normalizeHeaders(headers, method, sanitizeHeaderOptions) {
   if (!headers || typeof headers !== 'object') {
     return {};
   }
@@ -108,13 +192,21 @@ function normalizeHeaders(headers, method) {
     }
   });
 
+  const headerSanitize = {
+    ...DEFAULT_SANITIZE_OPTIONS,
+    maxStringLength: 1000,
+    maxDepth: 4,
+    ...(sanitizeHeaderOptions || {}),
+  };
+
   return Object.entries(flattened).reduce((accumulator, [key, value]) => {
-    accumulator[key] = maskIfSensitive(key, sanitizeValue(value, { maxStringLength: 1000 }));
+    accumulator[key] = maskIfSensitive(key, sanitizeValue(value, headerSanitize));
     return accumulator;
   }, {});
 }
 
 module.exports = {
+  DEFAULT_SANITIZE_OPTIONS,
   normalizeHeaders,
   sanitizeValue,
   truncateString,
